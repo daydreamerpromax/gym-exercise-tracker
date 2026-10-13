@@ -40,8 +40,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .weeknav button{background:var(--surface);border:1px solid var(--line);border-radius:10px;width:40px;height:40px;font-size:1.1rem}
 .weeknav span{font-size:.9rem;color:var(--muted);min-width:7.5em;text-align:center;font-variant-numeric:tabular-nums}
 .sync{font-size:.78rem;color:var(--muted)}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
-.tabs button{border:0;background:transparent;border-radius:9px;padding:10px 4px;font-weight:600;font-size:.92rem;color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.tabs button{border:0;background:transparent;border-radius:9px;padding:10px 2px;font-weight:600;font-size:.85rem;color:var(--muted)}
 .tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .muted{color:var(--muted);font-size:.9rem}
@@ -122,6 +122,31 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .plan textarea{width:100%;min-height:7.5em;font:inherit;font-size:.9rem;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical}
 .rules{font-size:.9rem;color:var(--muted)}
 .themebtn{background:none;border:0;color:var(--muted);font-size:.8rem;text-decoration:underline;padding:0}
+/* protein */
+.daynav{display:flex;align-items:center;gap:6px}
+.daynav button{background:var(--surface);border:1px solid var(--line);border-radius:10px;width:40px;height:40px;font-size:1.1rem}
+.daynav span{font-size:.9rem;color:var(--muted);min-width:8em;text-align:center}
+.big{font-family:var(--display);font-size:2.4rem;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:1rem;color:var(--muted);font-weight:400}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.form .full{grid-column:1/-1}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);font-weight:600;min-width:0}
+.form input,.form select,.goal input{width:100%;min-width:0;height:44px;font:inherit;font-size:1rem;padding:0 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.calc{font-size:.95rem;font-weight:600;color:var(--accent)}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.quick button{background:var(--accent-soft);border:0;border-radius:99px;padding:6px 12px;font-size:.82rem;font-weight:600;color:var(--ink)}
+.meal{display:flex;justify-content:space-between;font-weight:700;font-size:.85rem;color:var(--muted);padding-top:4px}
+.item{display:grid;grid-template-columns:1fr auto 40px;gap:8px;align-items:center;font-size:.92rem;padding:4px 0;border-top:1px solid var(--line)}
+.item small{display:block;color:var(--muted);font-size:.76rem}
+.item b{font-variant-numeric:tabular-nums}
+.item .del{width:40px;height:40px;border:0;background:transparent;color:var(--red);font-size:1.1rem;border-radius:10px}
+.goal{display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted)}
+.goal input{width:5.5em;text-align:center}
+.hrow.p{grid-template-columns:5.2em 1fr 4.2em}
+.pbar{height:18px;border-radius:5px;background:var(--line);position:relative;overflow:hidden}
+.pbar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:5px}
+.pbar i.ok{background:var(--green)}
+.pbar b{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.5}
 .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
 </style>
@@ -142,6 +167,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     <button role="tab" data-tab="today" aria-selected="true">Today</button>
     <button role="tab" data-tab="week" aria-selected="false">Week</button>
     <button role="tab" data-tab="progress" aria-selected="false">Progress</button>
+    <button role="tab" data-tab="protein" aria-selected="false">Protein</button>
     <button role="tab" data-tab="coach" aria-selected="false">Coach</button>
   </div>
   <section id="view"></section>
@@ -172,7 +198,9 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   };
   var RULE="Four sessions are the must: Chest, Shoulders + Biceps, Back + Triceps and Legs. A 5th is optional and the weekly maximum. Don't double up to make up a missed day; move it to the next free slot.";
 
-  var S={settings:{plan:clone(DEFAULT_PLAN)},weeks:{},tab:"today",offset:0,sel:null,msg:"",note:"",editing:false};
+  var S={settings:{plan:clone(DEFAULT_PLAN),goal:100},weeks:{},prot:{},pd:0,pf:{n:"",q:"1",p:"",m:guessMeal(),k:"each"},tab:"today",offset:0,sel:null,msg:"",note:"",editing:false};
+  function guessMeal(){var h=new Date().getHours();return h<11?"B":h<16?"L":h<19?"S":"D"}
+  var MEALS=[["B","Breakfast"],["L","Lunch"],["S","Snack"],["D","Dinner"]];
   function clone(o){return JSON.parse(JSON.stringify(o))}
 
   /* ---------- dates ---------- */
@@ -244,9 +272,77 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     return null;
   }
 
+  /* ---------- protein ---------- */
+  function r1(x){return Math.round(x*10)/10}
+  function pkey(off){var d=new Date();d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+off);return key(d)}
+  function pday(k){return S.prot[k]||{items:[]}}
+  function ptotal(day){return r1(day.items.reduce(function(a,i){return a+i.g},0))}
+  function saveProt(k){var d=S.prot[k];d.u=Date.now();if(!lsSet("gt-prot-"+k,d))setSync("Could not save. Browser storage is blocked or full.");else setSync("Saved on this device. Use Backup to move it to your other device.")}
+  function goal(){return S.settings.goal>0?S.settings.goal:100}
+  function recentFoods(){
+    var seen={},out=[];
+    Object.keys(S.prot).sort().reverse().forEach(function(k){
+      S.prot[k].items.slice().reverse().forEach(function(i){var id=i.n.toLowerCase();if(!seen[id]&&out.length<8){seen[id]=1;out.push(i)}});
+    });
+    return out;
+  }
+  function addFood(){
+    var f=S.pf,q=parseFloat(f.q),p=parseFloat(f.p),n=(f.n||"").trim();
+    if(!n||!(q>0)||!(p>=0)||f.p===""){S.pmsg="Enter the food, the amount, and the protein in grams.";render();return}
+    var k=pkey(S.pd);if(!S.prot[k])S.prot[k]={items:[]};
+    S.prot[k].items.push({n:n,q:q,p:p,m:f.m,k:f.k,g:r1(f.k==="all"?p:q*p)});
+    saveProt(k);S.pmsg="";S.pf={n:"",q:"1",p:"",m:f.m,k:f.k};render();
+    var el=document.getElementById("pf-n");if(el)el.focus();
+  }
+  function renderProtein(){
+    var k=pkey(S.pd),day=pday(k),tot=ptotal(day),g=goal(),f=S.pf;
+    var d=new Date();d.setDate(d.getDate()+S.pd);
+    var lbl=S.pd===0?"Today":S.pd===-1?"Yesterday":d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+    var pct=Math.min(100,tot/g*100),hit=tot>=g;
+    var out='<div class="card"><div class="barhead"><h2>Protein</h2><div class="daynav"><button data-pd="-1" aria-label="Previous day">‹</button><span>'+lbl+'</span><button data-pd="1" aria-label="Next day"'+(S.pd>=0?' disabled':'')+'>›</button></div></div>';
+    out+='<div class="big">'+tot+' g <small>of '+g+' g</small></div><div class="bar" aria-hidden="true"><i style="width:'+pct+'%;'+(hit?'background:var(--green)':'')+'"></i></div>';
+    out+='<div class="barhead"><span class="pill '+(hit?'hit':(tot>0?'min':''))+'">'+(hit?'Goal reached':(tot>0?r1(g-tot)+' g to go':'Nothing logged'))+'</span><span class="goal"><label for="goalin">Daily goal (g)</label><input id="goalin" type="number" inputmode="numeric" min="1" max="500" value="'+g+'"></span></div>';
+    out+='<p class="muted">The total adds up as you log and is saved automatically, so the day\'s tally is always final.</p></div>';
+    // form
+    out+='<div class="card"><h2>Add food</h2>';
+    var rec=recentFoods();
+    if(rec.length)out+='<div class="quick" aria-label="Recent foods">'+rec.map(function(i,x){return '<button data-pq="'+x+'">'+h(i.n)+'</button>'}).join("")+'</div>';
+    out+='<div class="form"><label class="full">Food<input id="pf-n" data-pf="n" autocomplete="off" placeholder="e.g. Eggs, boneless chicken" value="'+h(f.n)+'"></label>';
+    out+='<label>Amount (3 eggs, 200 g…)<input id="pf-q" data-pf="q" type="number" inputmode="decimal" step="any" min="0" value="'+h(f.q)+'"></label>';
+    out+='<label>Protein (g)<input id="pf-p" data-pf="p" type="number" inputmode="decimal" step="any" min="0" placeholder="e.g. 6" value="'+h(f.p)+'"></label>';
+    out+='<label class="full">The protein number is<select data-pf="k"><option value="each"'+(f.k!=="all"?' selected':'')+'>Per item (eggs: 6 g each)</option><option value="all"'+(f.k==="all"?' selected':'')+'>Whole amount (200 g = 50 g)</option></select></label>';
+    out+='<label class="full">Meal<select data-pf="m">'+MEALS.map(function(m){return '<option value="'+m[0]+'"'+(f.m===m[0]?' selected':'')+'>'+m[1]+'</option>'}).join("")+'</select></label></div>';
+    var live=(parseFloat(f.q)>0&&parseFloat(f.p)>=0)?r1(f.k==="all"?parseFloat(f.p):parseFloat(f.q)*parseFloat(f.p)):0;
+    out+='<div class="calc" id="pcalc">= '+live+' g protein</div>';
+    if(S.pmsg)out+='<div class="tip warn">'+h(S.pmsg)+'</div>';
+    out+='<button class="btn big" id="padd">Add to '+(S.pd===0?"today":lbl.toLowerCase())+'</button>';
+    out+='<p class="muted">Examples: Eggs, amount 3, protein 6, "Per item" = 18 g. Boneless chicken, amount 200, protein 50, "Whole amount" = 50 g.</p></div>';
+    // list
+    out+='<div class="card"><h2>'+h(lbl)+'\'s food</h2>';
+    if(!day.items.length)out+='<p class="muted">Nothing logged yet.</p>';
+    else MEALS.forEach(function(m){
+      var its=[];day.items.forEach(function(i,x){if((i.m||"S")===m[0])its.push([i,x])});
+      if(!its.length)return;
+      out+='<div class="meal"><span>'+m[1]+'</span><span>'+r1(its.reduce(function(a,y){return a+y[0].g},0))+' g</span></div>';
+      its.forEach(function(y){var i=y[0];out+='<div class="item"><span>'+h(i.n)+'<small>'+(i.k==='all'?i.q+' · '+i.p+' g for the whole amount':i.q+' × '+i.p+' g each')+'</small></span><b>'+i.g+' g</b><button class="del" data-pdel="'+y[1]+'" aria-label="Remove '+h(i.n)+'">✕</button></div>'});
+    });
+    if(day.items.length)out+='<div class="meal" style="color:var(--ink);font-size:1rem;border-top:2px solid var(--line);padding-top:8px"><span>Day total</span><span>'+tot+' g</span></div>';
+    out+='</div>';
+    // history
+    var rows=[],sum=0,cnt=0,mx=g;
+    for(var i=0;i<14;i++){var kk=pkey(-i),t=ptotal(pday(kk));if(t>0){var dd=new Date();dd.setDate(dd.getDate()-i);rows.push({l:fmt(dd),t:t});if(i<7){sum+=t;cnt++}mx=Math.max(mx,t)}}
+    out+='<div class="card"><h2>Last 14 days</h2>';
+    if(!rows.length)out+='<p class="muted">Your daily totals show up here.</p>';
+    else{
+      out+='<div class="hist">'+rows.map(function(r){return '<div class="hrow p"><span>'+r.l+'</span><span class="pbar"><i class="'+(r.t>=g?'ok':'')+'" style="width:'+(r.t/mx*100)+'%"></i><b style="left:calc('+(g/mx*100)+'% - 1px)"></b></span><span>'+r.t+' g</span></div>'}).join("")+'</div>';
+      out+='<p class="muted">Dark tick = your goal ('+g+' g). Green = goal reached.'+(cnt?' Average of the last 7 days you logged: <b>'+Math.round(sum/cnt)+' g</b>.':'')+'</p>';
+    }
+    return out+'</div>';
+  }
+
   /* ---------- backup / restore (merge, newest edit wins per week) ---------- */
   function exportData(){
-    var all={app:"gym-tracker",v:1,settings:S.settings,weeks:S.weeks,at:new Date().toISOString()};
+    var all={app:"gym-tracker",v:1,settings:S.settings,weeks:S.weeks,prot:S.prot,at:new Date().toISOString()};
     var blob=new Blob([JSON.stringify(all)],{type:"application/json"});
     var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="gym-tracker-backup.json";
     document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},2000);
@@ -261,8 +357,9 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
           var inc=d.weeks[k],cur=S.weeks[k];
           if(!cur||(inc.u||0)>(cur.u||0)){S.weeks[k]=inc;lsSet("gt-week-"+k,inc);n++}
         });
-        if(d.settings&&d.settings.plan&&(d.settings.u||0)>(S.settings.u||0)){S.settings=d.settings;lsSet("gt-settings",S.settings)}
-        S.note="Imported. "+n+" week"+(n===1?"":"s")+" updated from the file.";
+        var pn=0;Object.keys(d.prot||{}).forEach(function(k){var inc=d.prot[k],cur=S.prot[k];if(inc&&inc.items&&(!cur||(inc.u||0)>(cur.u||0))){S.prot[k]=inc;lsSet("gt-prot-"+k,inc);pn++}});
+        if(d.settings&&d.settings.plan&&(d.settings.u||0)>(S.settings.u||0)){S.settings=d.settings;if(!S.settings.goal)S.settings.goal=100;lsSet("gt-settings",S.settings)}
+        S.note="Imported. "+n+" week"+(n===1?"":"s")+" and "+pn+" protein day"+(pn===1?"":"s")+" updated from the file.";
       }catch(e){S.note="That file isn't a Gym Tracker backup."}
       render();
     };
@@ -280,12 +377,13 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     var out=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Gym Tracker//EN",
       ev("plan","1700","Gym check-in: which split today?","Open Gym Tracker and pick today's session. 4 must, 5 max.","MO,TU,WE,TH,FR,SA,SU"),
       ev("log","2130","Log your workout","Fill in your sets and tick the session done.","MO,TU,WE,TH,FR,SA,SU"),
+      ev("protein","2145","Tally your protein","Add anything you forgot and check today's protein total.","MO,TU,WE,TH,FR,SA,SU"),
       ev("review","2000","Gym week review","Check which splits are missing and plan next week. No doubling up.","SU"),
       "END:VCALENDAR"].join("\r\n");
     var blob=new Blob([out],{type:"text/calendar"});
     var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="gym-tracker-reminders.ics";
     document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},2000);
-    S.note="Open the downloaded file to add the reminders to your calendar. Times: 5:00 pm check-in, 9:30 pm log, Sunday 8 pm review.";render();
+    S.note="Open the downloaded file to add the reminders to your calendar. Times: 5:00 pm check-in, 9:30 pm log, 9:45 pm protein tally, Sunday 8 pm review.";render();
   }
 
   /* ---------- actions ---------- */
@@ -483,7 +581,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     var out='<div class="card"><h2>This week</h2><ul class="tips">'+t.map(function(x){return '<li class="tip '+x.c+'">'+h(x.t)+'</li>'}).join("")+'</ul></div>';
     out+='<div class="card"><h2>Suggested rhythm</h2><p class="muted">Chest, Shoulders + Biceps, Back + Triceps, then Legs, with a rest day between the hard ones. For example Mon Chest, Tue Shoulders + Biceps, Thu Back + Triceps, Fri Legs. Keep the weekend for a make-up session or the optional 5th. Never go over 5, and keep at least two rest days.</p></div>';
     out+='<div class="card"><h2>Progressing</h2><p class="muted">Pick a rep range per lift. When every set hits the top of the range, add 2.5 kg (1.25 kg on small lifts) next time and drop back to the bottom of the range. Stop each set 1 to 2 reps before failure, and keep the form clean.</p></div>';
-    out+='<div class="card"><h2>Sync and reminders</h2><p class="muted">Your data lives on this device. To use both devices, save a backup into your Syncthing folder and import it on the other device. Newest edit wins for each week.</p><div class="btnrow"><button class="btn" id="exp">Save backup</button><button class="btn ghost" id="imp">Import backup</button></div><input type="file" id="impfile" accept=".json,application/json" hidden><p class="muted">Reminders at 5:00 pm, 9:30 pm and a Sunday review come from your calendar app, so they ring even when this app is closed.</p><button class="btn ghost" id="ics">Add reminders to calendar</button>'+(S.note?'<div class="tip good">'+h(S.note)+'</div>':'')+'</div>';
+    out+='<div class="card"><h2>Sync and reminders</h2><p class="muted">Your data lives on this device. To use both devices, save a backup into your Syncthing folder and import it on the other device. Newest edit wins for each week.</p><div class="btnrow"><button class="btn" id="exp">Save backup</button><button class="btn ghost" id="imp">Import backup</button></div><input type="file" id="impfile" accept=".json,application/json" hidden><p class="muted">Reminders at 5:00 pm, 9:30 pm, 9:45 pm (protein) and a Sunday review come from your calendar app, so they ring even when this app is closed.</p><button class="btn ghost" id="ics">Add reminders to calendar</button>'+(S.note?'<div class="tip good">'+h(S.note)+'</div>':'')+'</div>';
     out+='<div class="card plan"><h2>Workouts</h2>';
     if(!S.editing){
       out+='<p class="muted">'+ORDER.concat(["X"]).map(function(c){return '<b>'+TYPES[c].name+':</b> '+S.settings.plan[c].map(function(e){return h(e.n)}).join(", ")}).join("<br><br>")+'</p><div class="btnrow"><button class="btn ghost" id="editP">Edit exercises</button></div>';
@@ -501,7 +599,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
     var k=k0();
     document.getElementById("weeklabel").textContent=fmt(shownMonday())+(S.offset===0?" (this week)":"");
     Array.prototype.forEach.call(document.querySelectorAll("#tabs button"),function(b){b.setAttribute("aria-selected",String(b.dataset.tab===S.tab))});
-    view.innerHTML=S.tab==="today"?renderToday(k):S.tab==="week"?renderWeek(k):S.tab==="progress"?renderProgress():renderCoach(k);
+    view.innerHTML=S.tab==="today"?renderToday(k):S.tab==="week"?renderWeek(k):S.tab==="progress"?renderProgress():S.tab==="protein"?renderProtein():renderCoach(k);
   }
   function parsePlan(txt){
     var out=[];
@@ -525,6 +623,10 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   });
   view.addEventListener("click",function(e){
     var k=k0(),b,di=S.sel!==null?S.sel:(S.offset===0?todayIdx():null);
+    if((b=e.target.closest("[data-pd]"))){S.pd=Math.min(0,S.pd+ +b.dataset.pd);S.pmsg="";render();return}
+    if((b=e.target.closest("[data-pq]"))){var rf=recentFoods()[+b.dataset.pq];if(rf){S.pf.n=rf.n;S.pf.q=String(rf.q);S.pf.p=String(rf.p);if(rf.m)S.pf.m=rf.m;S.pf.k=rf.k||"each";render();document.getElementById("pf-q").focus()}return}
+    if((b=e.target.closest("[data-pdel]"))){var pk=pkey(S.pd);S.prot[pk].items.splice(+b.dataset.pdel,1);saveProt(pk);render();return}
+    if(e.target.id==="padd"){addFood();return}
     if((b=e.target.closest("[data-type]"))&&di!==null){var cur=peek(k).d[di];setType(k,di,b.dataset.type===""||(cur&&cur.t===b.dataset.type&&!cur.done)?"":b.dataset.type);return}
     if((b=e.target.closest("[data-done]"))){toggleDone(k,+b.dataset.done);return}
     if((b=e.target.closest("[data-open]"))){S.sel=+b.dataset.open;S.tab="today";S.msg="";render();window.scrollTo(0,0);return}
@@ -545,16 +647,27 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   });
   view.addEventListener("change",function(e){
     var el=e.target,k=k0(),di=S.sel!==null?S.sel:(S.offset===0?todayIdx():null);
+    if(el.id==="goalin"){var gv=parseInt(el.value,10);S.settings.goal=gv>0?Math.min(500,gv):100;saveSettings();render();return}
+    if(el.dataset.pf==="m"){S.pf.m=el.value;return}
+    if(el.dataset.pf==="k"){S.pf.k=el.value;render();return}
     if(el.id==="impfile"){if(el.files&&el.files[0])importData(el.files[0]);el.value="";return}
     if(el.dataset.sel!==undefined){setType(k,+el.dataset.sel,el.value);return}
     if(el.dataset.ex!==undefined&&di!==null){logSet(k,di,+el.dataset.ex,+el.dataset.s,+el.dataset.f,el.value);return}
   });
 
+  view.addEventListener("input",function(e){
+    var el=e.target;if(!el.dataset||!el.dataset.pf||el.dataset.pf==="m"||el.dataset.pf==="k")return;
+    S.pf[el.dataset.pf]=el.value;
+    var q=parseFloat(S.pf.q),p=parseFloat(S.pf.p),c=document.getElementById("pcalc");
+    if(c)c.textContent="= "+((q>0&&p>=0)?r1(S.pf.k==="all"?p:q*p):0)+" g protein";
+  });
+  view.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.dataset&&e.target.dataset.pf&&e.target.dataset.pf!=="m"&&e.target.dataset.pf!=="k"){e.preventDefault();addFood()}});
+
   /* ---------- load ---------- */
   (function loadLocal(){
-    var st=lsGet("gt-settings"); if(st&&st.plan)S.settings=st;
+    var st=lsGet("gt-settings"); if(st&&st.plan)S.settings=st;if(!(S.settings.goal>0))S.settings.goal=100;
     ORDER.concat(["X"]).forEach(function(c){if(!S.settings.plan[c])S.settings.plan[c]=clone(DEFAULT_PLAN[c])});
-    try{for(var i=0;i<localStorage.length;i++){var n=localStorage.key(i);if(n&&n.indexOf("gt-week-")===0){var w=lsGet(n);if(w&&w.d)S.weeks[n.slice(8)]=w}}}catch(e){}
+    try{for(var i=0;i<localStorage.length;i++){var n=localStorage.key(i);if(n&&n.indexOf("gt-week-")===0){var w=lsGet(n);if(w&&w.d)S.weeks[n.slice(8)]=w}if(n&&n.indexOf("gt-prot-")===0){var pd=lsGet(n);if(pd&&pd.items)S.prot[n.slice(8)]=pd}}}catch(e){}
   })();
   render(); setSync("Saved on this device. Works offline.");
   document.getElementById("foot2").textContent="Week starts Monday";
