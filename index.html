@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#c2410c">
+<title>Gym Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Layout: one column, max 640px. Header with week switcher, segmented tabs (Today / Week / Progress / Coach), cards below. */
+:root{
+  --bg:#f8f4f0; --surface:#ffffff; --ink:#241a14; --muted:#6c6058; --line:#e6ded7;
+  --accent:#c2410c; --accent-ink:#ffffff; --accent-soft:#fde6d8;
+  --green:#1f8a4c; --green-soft:#dcf3e5; --yellow:#a86a00; --yellow-soft:#fbefcf; --red:#c23a3a; --red-soft:#fbe0e0;
+  --display:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15110e; --surface:#1f1915; --ink:#f3ece6; --muted:#b0a398; --line:#352c25;
+  --accent:#ff9a62; --accent-ink:#1a0e06; --accent-soft:#3b2315;
+  --green:#58d08b; --green-soft:#17382a; --yellow:#e8b04a; --yellow-soft:#3d3015; --red:#ff8a8a; --red-soft:#432024; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15110e; --surface:#1f1915; --ink:#f3ece6; --muted:#b0a398; --line:#352c25;
+  --accent:#ff9a62; --accent-ink:#1a0e06; --accent-soft:#3b2315;
+  --green:#58d08b; --green-soft:#17382a; --yellow:#e8b04a; --yellow-soft:#3d3015; --red:#ff8a8a; --red-soft:#432024; color-scheme:dark}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;padding-inline:16px;padding-block:20px 48px}
+.app{max-width:640px;margin-inline:auto;display:flex;flex-direction:column;gap:16px}
+#view{display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.15;text-wrap:balance}
+h1{font-size:1.6rem}
+h2{font-size:1.15rem}
+h3{font-size:1rem}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.weeknav{display:flex;align-items:center;gap:6px}
+.weeknav button{background:var(--surface);border:1px solid var(--line);border-radius:10px;width:40px;height:40px;font-size:1.1rem}
+.weeknav span{font-size:.9rem;color:var(--muted);min-width:7.5em;text-align:center;font-variant-numeric:tabular-nums}
+.sync{font-size:.78rem;color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.tabs button{border:0;background:transparent;border-radius:9px;padding:10px 4px;font-weight:600;font-size:.92rem;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.muted{color:var(--muted);font-size:.9rem}
+.card p{margin:0}
+/* split picker */
+.chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.chip{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 8px;font-weight:700;font-family:var(--display);font-size:.98rem;min-height:48px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.sug:not([aria-pressed="true"]){border-style:dashed;border-color:var(--accent);color:var(--accent)}
+.chip.rest{grid-column:1/-1;font-weight:600;font-size:.9rem;color:var(--muted);min-height:40px;padding:8px}
+/* progress bar with min marker */
+.bar{height:10px;border-radius:99px;background:var(--line);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:99px}
+.bar b{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.5}
+.barhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.pill{font-size:.76rem;font-weight:600;border-radius:99px;padding:2px 9px;white-space:nowrap;background:var(--line);color:var(--muted)}
+.pill.hit{background:var(--green-soft);color:var(--green)}
+.pill.min{background:var(--yellow-soft);color:var(--yellow)}
+.pill.behind{background:var(--red-soft);color:var(--red)}
+.splits{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sp{border-radius:10px;padding:8px 4px;text-align:center;font-size:.78rem;font-weight:600;background:var(--line);color:var(--muted)}
+.sp.on{background:var(--green-soft);color:var(--green)}
+.sp.on::before{content:"✓ "}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--accent-soft);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-family:var(--display);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.stat span{font-size:.78rem;color:var(--muted)}
+/* workout logging */
+.ex{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.ex:first-of-type{border-top:0;padding-top:0}
+.exhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.exname{font-weight:700}
+.target{font-size:.8rem;color:var(--accent);font-weight:600;white-space:nowrap}
+.last{font-size:.8rem;color:var(--muted)}
+.set{display:grid;grid-template-columns:1.6em 1fr auto 1fr;gap:8px;align-items:center}
+.set .sn{color:var(--muted);font-size:.85rem;text-align:center;font-variant-numeric:tabular-nums}
+.set input{width:100%;min-width:0;height:44px;font:inherit;font-size:1rem;text-align:center;padding:0 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+.set input::placeholder{color:var(--muted);opacity:.55}
+.set .x{color:var(--muted)}
+.setbtns{display:flex;gap:8px}
+.mini{background:transparent;border:1.5px solid var(--line);border-radius:9px;padding:6px 12px;font-size:.82rem;font-weight:600;color:var(--muted)}
+.mini:disabled{opacity:.4}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:12px 16px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.big{min-height:52px;font-size:1.05rem}
+.btn.done{background:var(--green-soft);color:var(--green);border:2px solid var(--green)}
+.btn:disabled{opacity:.5}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+/* week grid (one row per day) */
+.days{display:flex;flex-direction:column;gap:8px;padding:0;margin:0;list-style:none}
+.day{display:grid;grid-template-columns:3.6em 1fr auto auto;gap:8px;align-items:center}
+.day .dl{font-weight:700;line-height:1.1}
+.day .dl small{display:block;font-weight:400;color:var(--muted);font-size:.72rem}
+.day.today .dl{color:var(--accent)}
+.day select{width:100%;min-width:0;height:44px;font:inherit;font-size:.85rem;padding:0 6px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.check{width:44px;height:44px;border-radius:11px;border:2px solid var(--line);background:var(--surface);font-size:1.3rem;line-height:1;color:var(--accent-ink)}
+.check[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+.check:disabled{opacity:.35}
+.open{background:none;border:0;color:var(--accent);font-size:.82rem;font-weight:600;text-decoration:underline;padding:6px 2px}
+/* history + progress */
+.hist{display:flex;flex-direction:column;gap:8px}
+.hrow{display:grid;grid-template-columns:5.2em 1fr 3.4em;gap:10px;align-items:center;font-size:.85rem;font-variant-numeric:tabular-nums}
+.hbar{display:flex;gap:3px}
+.hbar i{flex:1;height:18px;border-radius:4px;background:var(--line)}
+.hbar i.hit{background:var(--green)} .hbar i.max{background:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:var(--line)}
+.legend .l1::before{background:var(--green)} .legend .l2::before{background:var(--accent)}
+.rec{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:.88rem;padding:8px 0;border-top:1px solid var(--line)}
+.rec:first-of-type{border-top:0}
+.rec .rn{font-weight:600}
+.rec .rv{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.up{color:var(--green);font-weight:700} .down{color:var(--red);font-weight:700}
+.tips{display:flex;flex-direction:column;gap:10px;padding:0;margin:0;list-style:none}
+.tip{border-radius:10px;padding:10px 12px;font-size:.95rem;background:var(--accent-soft)}
+.tip.warn{background:var(--yellow-soft)} .tip.bad{background:var(--red-soft)} .tip.good{background:var(--green-soft)}
+.plan label{font-size:.82rem;font-weight:700}
+.plan textarea{width:100%;min-height:7.5em;font:inherit;font-size:.9rem;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical}
+.rules{font-size:.9rem;color:var(--muted)}
+.themebtn{background:none;border:0;color:var(--muted);font-size:.8rem;text-decoration:underline;padding:0}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
+</style>
+</head><body>
+<main class="app" id="app">
+  <div class="top">
+    <div>
+      <h1>Gym Tracker</h1>
+      <div class="sync" id="sync">Loading…</div>
+    </div>
+    <div class="weeknav">
+      <button id="prev" aria-label="Previous week">‹</button>
+      <span id="weeklabel"></span>
+      <button id="next" aria-label="Next week">›</button>
+    </div>
+  </div>
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="today" aria-selected="true">Today</button>
+    <button role="tab" data-tab="week" aria-selected="false">Week</button>
+    <button role="tab" data-tab="progress" aria-selected="false">Progress</button>
+    <button role="tab" data-tab="coach" aria-selected="false">Coach</button>
+  </div>
+  <section id="view"></section>
+  <div class="foot">
+    <button class="themebtn" id="themebtn">Switch light / dark</button>
+    <span class="sync" id="foot2"></span>
+  </div>
+</main>
+
+<script>
+(function(){
+  var DAY=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  var MIN=4, MAX=5;                       // 4 must sessions, 5 is the weekly maximum
+  var ORDER=["C","S","B","L"];            // the four must-do splits
+  var TYPES={
+    C:{name:"Chest",short:"Chest"},
+    S:{name:"Shoulders + Biceps",short:"Shoulders"},
+    B:{name:"Back + Triceps",short:"Back"},
+    L:{name:"Legs",short:"Legs"},
+    X:{name:"Bonus (5th session)",short:"Bonus"}
+  };
+  var DEFAULT_PLAN={
+    C:[{n:"Barbell bench press",t:"4x6-8"},{n:"Incline dumbbell press",t:"3x8-10"},{n:"Machine chest press",t:"3x10-12"},{n:"Cable fly",t:"3x12-15"},{n:"Dips (chest lean)",t:"3x8-12"}],
+    S:[{n:"Overhead press",t:"4x6-8"},{n:"Dumbbell lateral raise",t:"4x12-15"},{n:"Rear delt fly",t:"3x12-15"},{n:"Barbell curl",t:"3x8-10"},{n:"Hammer curl",t:"3x10-12"},{n:"Incline dumbbell curl",t:"3x10-12"}],
+    B:[{n:"Lat pulldown",t:"4x8-10"},{n:"Seated cable row",t:"4x8-10"},{n:"One-arm dumbbell row",t:"3x10-12"},{n:"Triceps pushdown",t:"3x10-12"},{n:"Overhead triceps extension",t:"3x10-12"},{n:"Skull crusher",t:"3x8-10"}],
+    L:[{n:"Back squat",t:"4x6-8"},{n:"Romanian deadlift",t:"3x8-10"},{n:"Leg press",t:"3x10-12"},{n:"Leg curl",t:"3x10-12"},{n:"Leg extension",t:"3x12-15"},{n:"Standing calf raise",t:"4x12-15"}],
+    X:[{n:"Cable crunch",t:"3x12-15"},{n:"Hanging leg raise",t:"3x10-15"},{n:"Plank (log seconds as reps)",t:"3x45"},{n:"Weak point: lateral raise",t:"3x15"}]
+  };
+  var RULE="Four sessions are the must: Chest, Shoulders + Biceps, Back + Triceps and Legs. A 5th is optional and the weekly maximum. Don't double up to make up a missed day; move it to the next free slot.";
+
+  var S={settings:{plan:clone(DEFAULT_PLAN)},weeks:{},tab:"today",offset:0,sel:null,msg:"",note:"",editing:false};
+  function clone(o){return JSON.parse(JSON.stringify(o))}
+
+  /* ---------- dates ---------- */
+  function pad(n){return (n<10?"0":"")+n}
+  function key(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+  function mondayOf(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+  function currentMonday(){return mondayOf(new Date())}
+  function shownMonday(){var m=currentMonday();m.setDate(m.getDate()+7*S.offset);return m}
+  function todayIdx(){return (new Date().getDay()+6)%7}
+  function fmt(d){return d.toLocaleDateString(undefined,{day:"numeric",month:"short"})}
+  function dayDate(i){var d=shownMonday();d.setDate(d.getDate()+i);return d}
+  function k0(){return key(shownMonday())}
+
+  /* ---------- week data ---------- */
+  // week = {u, d:[7 x null | {t:"C|S|B|L|X", done:bool, log:{exerciseName:[[kg,reps],...]}}]}
+  function blank(){return {d:[null,null,null,null,null,null,null]}}
+  function peek(k){return S.weeks[k]||blank()}
+  function wk(k){if(!S.weeks[k])S.weeks[k]=blank();return S.weeks[k]}
+  function stats(w){
+    var n=0,sp={},vol=0;
+    w.d.forEach(function(s){
+      if(!s||!s.done)return;
+      n++; if(s.t!=="X")sp[s.t]=1;
+      Object.keys(s.log||{}).forEach(function(e){s.log[e].forEach(function(x){if(x&&x[0]>0&&x[1]>0)vol+=x[0]*x[1]})});
+    });
+    return {n:n,sp:sp,nsp:ORDER.filter(function(t){return sp[t]}).length,vol:vol};
+  }
+  function missing(w){var st=stats(w);return ORDER.filter(function(t){return !st.sp[t]})}
+  function weekStatus(w,past){
+    var st=stats(w);
+    if(st.n>=MAX)return st.nsp>=MIN?{c:"hit",t:"Max reached"}:{c:"min",t:"Max, "+st.nsp+"/4 splits"};
+    if(st.nsp>=MIN)return {c:"hit",t:"Week done"};
+    if(past)return {c:"behind",t:st.nsp+"/4 splits"};
+    if(st.n===0)return {c:"",t:"Not started"};
+    return {c:"min",t:"In progress"};
+  }
+  function sets(t){var m=/^(\d+)/.exec(t||"");return m?Math.max(1,Math.min(10,+m[1])):3}
+  function fmtVol(v){return v>=1000?(v/1000).toFixed(1)+"k kg":Math.round(v)+" kg"}
+  function num(x){return x===null||x===undefined||x===""?"":String(x)}
+  function setCount(s,ex){var l=(s.log&&s.log[ex.n])||[];return Math.max(sets(ex.t),l.length)}
+
+  /* ---------- storage (this device only; backup file syncs devices) ---------- */
+  function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
+  function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+  function saveWeek(k){
+    var w=S.weeks[k]; w.u=Date.now();
+    if(!lsSet("gt-week-"+k,w))setSync("Could not save. Browser storage is blocked or full.");
+    else setSync("Saved on this device. Use Backup to move it to your other device.");
+  }
+  function saveSettings(){S.settings.u=Date.now();lsSet("gt-settings",S.settings)}
+  function setSync(t){var e=document.getElementById("sync");if(e)e.textContent=t}
+
+  /* ---------- previous performance (for "last time" hints) ---------- */
+  // Looks back through done sessions strictly before (weekKey, dayIdx) for the same exercise name.
+  function lastSets(name,k,di){
+    var keys=Object.keys(S.weeks).sort().reverse();
+    for(var a=0;a<keys.length;a++){
+      if(keys[a]>k)continue;
+      var w=S.weeks[keys[a]];
+      for(var i=6;i>=0;i--){
+        if(keys[a]===k&&i>=di)continue;
+        var s=w.d[i];
+        if(s&&s.done&&s.log&&s.log[name]){
+          var ok=s.log[name].filter(function(x){return x&&x[0]>0&&x[1]>0});
+          if(ok.length)return {sets:s.log[name],good:ok};
+        }
+      }
+    }
+    return null;
+  }
+
+  /* ---------- backup / restore (merge, newest edit wins per week) ---------- */
+  function exportData(){
+    var all={app:"gym-tracker",v:1,settings:S.settings,weeks:S.weeks,at:new Date().toISOString()};
+    var blob=new Blob([JSON.stringify(all)],{type:"application/json"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="gym-tracker-backup.json";
+    document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},2000);
+    S.note="Backup saved. Put it in your Syncthing study folder to share it with your other device.";render();
+  }
+  function importData(file){
+    var r=new FileReader();
+    r.onload=function(){
+      try{
+        var d=JSON.parse(r.result);if(d.app!=="gym-tracker"||!d.weeks)throw 0;
+        var n=0;Object.keys(d.weeks).forEach(function(k){
+          var inc=d.weeks[k],cur=S.weeks[k];
+          if(!cur||(inc.u||0)>(cur.u||0)){S.weeks[k]=inc;lsSet("gt-week-"+k,inc);n++}
+        });
+        if(d.settings&&d.settings.plan&&(d.settings.u||0)>(S.settings.u||0)){S.settings=d.settings;lsSet("gt-settings",S.settings)}
+        S.note="Imported. "+n+" week"+(n===1?"":"s")+" updated from the file.";
+      }catch(e){S.note="That file isn't a Gym Tracker backup."}
+      render();
+    };
+    r.readAsText(file);
+  }
+
+  /* ---------- reminders: a calendar file so your phone rings by itself ---------- */
+  function icsDownload(){
+    var t=new Date(),d=t.getFullYear()+pad(t.getMonth()+1)+pad(t.getDate());
+    function ev(id,time,title,desc,days){
+      return ["BEGIN:VEVENT","UID:gt-"+id+"@gym-tracker","DTSTAMP:"+d+"T000000","DTSTART:"+d+"T"+time+"00",
+        "DURATION:PT10M","RRULE:FREQ=WEEKLY;BYDAY="+days,"SUMMARY:"+title,"DESCRIPTION:"+desc,
+        "BEGIN:VALARM","TRIGGER:PT0M","ACTION:DISPLAY","DESCRIPTION:"+title,"END:VALARM","END:VEVENT"].join("\r\n");
+    }
+    var out=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Gym Tracker//EN",
+      ev("plan","1700","Gym check-in: which split today?","Open Gym Tracker and pick today's session. 4 must, 5 max.","MO,TU,WE,TH,FR,SA,SU"),
+      ev("log","2130","Log your workout","Fill in your sets and tick the session done.","MO,TU,WE,TH,FR,SA,SU"),
+      ev("review","2000","Gym week review","Check which splits are missing and plan next week. No doubling up.","SU"),
+      "END:VCALENDAR"].join("\r\n");
+    var blob=new Blob([out],{type:"text/calendar"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="gym-tracker-reminders.ics";
+    document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},2000);
+    S.note="Open the downloaded file to add the reminders to your calendar. Times: 5:00 pm check-in, 9:30 pm log, Sunday 8 pm review.";render();
+  }
+
+  /* ---------- actions ---------- */
+  function setType(k,i,t){
+    var w=wk(k),s=w.d[i];
+    if(!t){ // clearing
+      if(s&&s.done){S.msg="Untick the session first to change it.";render();return}
+      w.d[i]=null;
+    }else if(s){
+      if(s.done&&s.t!==t){S.msg="Untick the session first to change its type.";render();return}
+      s.t=t;
+    }else{w.d[i]={t:t,done:false,log:{}}}
+    S.msg="";saveWeek(k);render();
+  }
+  function toggleDone(k,i){
+    var w=wk(k),s=w.d[i];if(!s)return;
+    if(!s.done&&stats(w).n>=MAX){S.msg="That would be a 6th session. 5 is the weekly maximum, so rest and recover.";render();return}
+    s.done=!s.done;S.msg="";saveWeek(k);render();
+  }
+  function logSet(k,i,exIdx,si,f,val){
+    var w=wk(k),s=w.d[i];if(!s)return;
+    var ex=S.settings.plan[s.t][exIdx];if(!ex)return;
+    s.log=s.log||{};
+    var l=s.log[ex.n]||(s.log[ex.n]=[]);
+    while(l.length<=si)l.push([null,null]);
+    var v=parseFloat(val);l[si][f]=isNaN(v)||v<0?null:v;
+    saveWeek(k);
+    var sb=document.getElementById("sumbox");if(sb)sb.innerHTML=summaryInner(w);
+  }
+  function addSet(k,i,exIdx,delta){
+    var w=wk(k),s=w.d[i];if(!s)return;
+    var ex=S.settings.plan[s.t][exIdx];if(!ex)return;
+    s.log=s.log||{};var l=s.log[ex.n]||(s.log[ex.n]=[]);
+    while(l.length<sets(ex.t))l.push([null,null]);
+    if(delta>0&&l.length<12)l.push([null,null]);
+    if(delta<0&&l.length>1)l.pop();
+    saveWeek(k);render();
+  }
+  function suggest(w){
+    var m=missing(w);if(m.length)return m[0];
+    return stats(w).n<MAX?"X":null;
+  }
+
+  /* ---------- coach (works offline, no AI needed) ---------- */
+  function tips(k){
+    var w=peek(k),st=stats(w),out=[];
+    if(S.offset>0)return [{c:"",t:"This week hasn't started yet."}];
+    var miss=missing(w).map(function(t){return TYPES[t].short});
+    if(S.offset<0){
+      out.push({c:st.nsp>=MIN?"good":"warn",t:"Finished the week with "+st.n+" session"+(st.n===1?"":"s")+" and "+st.nsp+" of 4 splits."+(miss.length?" Missing: "+miss.join(", ")+".":"")});
+      return out;
+    }
+    var ti=todayIdx(), left=7-ti;
+    var todayS=w.d[ti];
+    if(st.n>=MAX){
+      out.push({c:"good",t:"5 of 5 sessions done. That is the weekly maximum, so rest and eat well."});
+    }else if(!miss.length){
+      out.push({c:"good",t:"All four splits done. A 5th session is optional: only go if you feel fresh, and make it a weak point or core day."});
+    }else{
+      var need=miss.length, doneToday=todayS&&todayS.done;
+      var avail=doneToday?left-1:left;
+      if(need>avail)out.push({c:"bad",t:"Still missing "+miss.join(", ")+" with only "+avail+" free day"+(avail===1?"":"s")+" left. Fit in what you can and carry the rest to next week. Don't double up in one day."});
+      else if(need>=avail)out.push({c:"warn",t:"Still missing "+miss.join(", ")+" and "+avail+" day"+(avail===1?"":"s")+" left. Every free day needs a session, so pick the slots now."});
+      else out.push({c:"",t:"Still to do: "+miss.join(", ")+". "+avail+" day"+(avail===1?"":"s")+" left, so you have room for rest days."});
+    }
+    if(todayS&&!todayS.done)out.push({c:"",t:"Today's plan: "+TYPES[todayS.t].name+". Log your sets as you go."});
+    var run=0;for(var i=ti;i>=0;i--){if(w.d[i]&&w.d[i].done)run++;else break}
+    if(run>=3)out.push({c:"warn",t:"That's "+run+" gym days in a row. Take a rest day so the muscles can grow."});
+    if(w.d[ti]&&w.d[ti].done&&w.d[ti].t==="L"&&ti<6)out.push({c:"",t:"Legs done. Keep tomorrow light on lower body and walk or stretch."});
+    return out;
+  }
+
+  /* ---------- history + records ---------- */
+  function historyRows(){
+    var rows=[],cur=key(currentMonday());
+    Object.keys(S.weeks).sort().reverse().forEach(function(k){
+      if(k>cur)return;
+      var w=S.weeks[k],st=stats(w);
+      if(!w.d.some(function(s){return s}))return;
+      rows.push({k:k,label:fmt(new Date(k+"T00:00:00")),st:st,past:k<cur});
+    });
+    return rows.slice(0,10);
+  }
+  // all done sessions oldest to newest -> per exercise list of top sets
+  function records(){
+    var by={},keys=Object.keys(S.weeks).sort();
+    keys.forEach(function(k){
+      S.weeks[k].d.forEach(function(s,i){
+        if(!s||!s.done||!s.log)return;
+        Object.keys(s.log).forEach(function(n){
+          var top=null;
+          s.log[n].forEach(function(x){if(x&&x[0]>0&&x[1]>0&&(!top||x[0]>top[0]||(x[0]===top[0]&&x[1]>top[1])))top=x});
+          if(top)(by[n]=by[n]||[]).push(top);
+        });
+      });
+    });
+    return by;
+  }
+
+  /* ---------- render ---------- */
+  var view=document.getElementById("view");
+  function h(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+  function barHtml(n){
+    return '<div class="bar" aria-hidden="true"><i style="width:'+Math.min(100,n/MAX*100)+'%"></i><b style="left:calc('+(MIN/MAX*100)+'% - 1px)" title="4 must"></b></div>';
+  }
+  function summaryInner(w){
+    var st=stats(w);
+    return '<div class="stat"><b>'+st.n+'/'+MAX+'</b><span>Sessions (4 must)</span></div><div class="stat"><b>'+st.nsp+'/4</b><span>Splits covered</span></div><div class="stat"><b>'+fmtVol(st.vol)+'</b><span>Volume lifted</span></div>';
+  }
+  function weekCard(w){
+    var st=stats(w),ws=weekStatus(w,S.offset<0);
+    var sp='<div class="splits">'+ORDER.map(function(t){return '<div class="sp'+(st.sp[t]?' on':'')+'">'+TYPES[t].short+'</div>'}).join("")+'</div>';
+    return '<div class="card"><div class="barhead"><h2>This week</h2><span class="pill '+ws.c+'">'+st.n+' / '+MAX+' · '+ws.t+'</span></div>'+barHtml(st.n)+sp+'<p class="muted">The dark tick on the bar marks your 4 must-do sessions. The end of the bar is the maximum of 5.</p></div>';
+  }
+  function renderToday(k){
+    var w=peek(k),di=S.sel!==null?S.sel:(S.offset===0?todayIdx():null);
+    if(di===null)return '<div class="card"><h2>Today</h2><p class="muted">Today is in the current week. Use the Week tab to open a day of this one.</p><button class="btn" id="gonow">Go to this week</button></div>'+weekCard(w);
+    var s=w.d[di],isToday=S.offset===0&&di===todayIdx(),sug=suggest(w);
+    var out=weekCard(w);
+    if(S.msg)out+='<div class="tip warn">'+h(S.msg)+'</div>';
+    var c='<div class="card"><h2>'+DAY[di]+', '+fmt(dayDate(di))+(isToday?' (today)':'')+'</h2>';
+    c+='<p class="muted">'+(s?'Session: '+TYPES[s.t].name+'.':'What are you training? ')+(!s&&sug?'Suggested: <b>'+TYPES[sug].name+'</b>.':'')+'</p><div class="chips">';
+    ORDER.concat(["X"]).forEach(function(t){
+      c+='<button class="chip'+(sug===t?' sug':'')+'" data-type="'+t+'" aria-pressed="'+(!!s&&s.t===t)+'">'+TYPES[t].name+'</button>';
+    });
+    c+='<button class="chip rest" data-type="" aria-pressed="false">'+(s?'Clear this day (rest)':'Rest day')+'</button></div>';
+    if(!isToday)c+='<button class="open" id="gotoday" style="align-self:flex-start">'+(S.offset===0?'Back to today':'Back to this week')+'</button>';
+    c+='</div>';
+    out+=c;
+    if(s){
+      var plan=S.settings.plan[s.t]||[];
+      var ex='<div class="card"><h2>'+TYPES[s.t].name+'</h2>';
+      plan.forEach(function(e,ei){
+        var l=(s.log&&s.log[e.n])||[],cnt=setCount(s,e),last=lastSets(e.n,k,di);
+        ex+='<div class="ex"><div class="exhead"><span class="exname">'+h(e.n)+'</span><span class="target">'+h(e.t.replace("x"," × "))+'</span></div>';
+        ex+='<div class="last">'+(last?'Last time: '+last.good.map(function(x){return x[0]+'×'+x[1]}).join(" · "):'No earlier log yet. Start light and note your numbers.')+'</div>';
+        for(var j=0;j<cnt;j++){
+          var cur=l[j]||[null,null],ph=(last&&last.sets[j])||(last&&last.good[last.good.length-1])||[null,null];
+          ex+='<div class="set"><span class="sn">'+(j+1)+'</span><input type="number" inputmode="decimal" step="0.5" min="0" placeholder="'+(ph[0]>0?ph[0]:'kg')+'" aria-label="'+h(e.n)+' set '+(j+1)+' weight in kg" data-ex="'+ei+'" data-s="'+j+'" data-f="0" value="'+num(cur[0])+'"><span class="x">×</span><input type="number" inputmode="numeric" step="1" min="0" placeholder="'+(ph[1]>0?ph[1]:'reps')+'" aria-label="'+h(e.n)+' set '+(j+1)+' reps" data-ex="'+ei+'" data-s="'+j+'" data-f="1" value="'+num(cur[1])+'"></div>';
+        }
+        ex+='<div class="setbtns"><button class="mini" data-add="'+ei+'">+ Set</button><button class="mini" data-rem="'+ei+'"'+(cnt<=1?' disabled':'')+'>− Set</button></div></div>';
+      });
+      ex+='<p class="muted">Greyed numbers are what you did last time. Beat one of them (more kg or more reps) and you are progressing.</p>';
+      ex+='<button class="btn big'+(s.done?' done':'')+'" id="finish">'+(s.done?'✓ Session done (tap to undo)':'Mark session done')+'</button></div>';
+      out+=ex;
+    }
+    out+='<div class="summary" id="sumbox">'+summaryInner(w)+'</div>';
+    return out;
+  }
+  function renderWeek(k){
+    var w=peek(k),ti=S.offset===0?todayIdx():-1,st=stats(w),ws=weekStatus(w,S.offset<0);
+    var t='<div class="card"><div class="barhead"><h2>Week of '+fmt(shownMonday())+'</h2><span class="pill '+ws.c+'">'+st.n+' / '+MAX+' · '+ws.t+'</span></div>';
+    if(S.msg)t+='<div class="tip warn">'+h(S.msg)+'</div>';
+    t+='<ul class="days">';
+    for(var i=0;i<7;i++){
+      var s=w.d[i];
+      t+='<li class="day'+(i===ti?' today':'')+'"><span class="dl">'+DAY[i]+'<small>'+fmt(dayDate(i))+'</small></span><select data-sel="'+i+'" aria-label="Session on '+DAY[i]+'"><option value="">Rest</option>';
+      ORDER.concat(["X"]).forEach(function(c){t+='<option value="'+c+'"'+(s&&s.t===c?' selected':'')+'>'+(c==="X"?"Bonus":TYPES[c].name)+'</option>'});
+      t+='</select><button class="check" data-done="'+i+'" aria-pressed="'+(!!s&&s.done)+'" aria-label="'+DAY[i]+' session done"'+(s?'':' disabled')+'>'+(s&&s.done?'✓':'')+'</button><button class="open" data-open="'+i+'">Log</button></li>';
+    }
+    t+='</ul><p class="muted">Pick a session for each day, tick it when finished, or tap Log to enter your sets. Plan up to 5 sessions, never more.</p></div>';
+    t+='<div class="summary" id="sumbox">'+summaryInner(w)+'</div>';
+    t+='<p class="rules">'+RULE+'</p>';
+    return t;
+  }
+  function renderProgress(){
+    var rows=historyRows(),out='';
+    if(!rows.length)out+='<div class="card"><h2>History</h2><p class="muted">Past weeks show up here once you have logged a session.</p></div>';
+    else{
+      out+='<div class="card"><h2>Last weeks</h2><div class="legend"><span class="l1">Must session</span><span class="l2">5th session</span><span>Not done</span></div><div class="hist">';
+      rows.forEach(function(r){
+        var cells='';for(var i=0;i<MAX;i++)cells+='<i class="'+(i<r.st.n?(i<MIN?'hit':'max'):'')+'"></i>';
+        out+='<div class="hrow"><span>'+r.label+'</span><span class="hbar">'+cells+'</span><span>'+r.st.n+'/'+MAX+'</span></div>';
+      });
+      out+='</div><p class="muted">Each block is one finished session. A week counts as done when all four splits are covered.</p></div>';
+    }
+    var rec=records(),any=false,body='<div class="card"><h2>Strength records</h2>';
+    ORDER.concat(["X"]).forEach(function(t){
+      var items=(S.settings.plan[t]||[]).filter(function(e){return rec[e.n]});
+      if(!items.length)return;
+      any=true;body+='<h3 style="margin-top:4px">'+TYPES[t].name+'</h3><div>';
+      items.forEach(function(e){
+        var l=rec[e.n],best=l.reduce(function(a,b){return (b[0]>a[0]||(b[0]===a[0]&&b[1]>a[1]))?b:a},l[0]),last=l[l.length-1],trend='';
+        if(l.length>1){var p=l[l.length-2];var cur=last[0]*(1+last[1]/30),prev=p[0]*(1+p[1]/30);trend=cur>prev+0.01?' <span class="up">▲</span>':(cur<prev-0.01?' <span class="down">▼</span>':' =')}
+        body+='<div class="rec"><span class="rn">'+h(e.n)+'</span><span class="rv">Best '+best[0]+'×'+best[1]+'</span><span class="muted">'+l.length+' session'+(l.length===1?'':'s')+'</span><span class="rv">Last '+last[0]+'×'+last[1]+trend+'</span></div>';
+      });
+      body+='</div>';
+    });
+    body+=any?'<p class="muted">Top set of each finished session. ▲ means your last session beat the one before (weight and reps combined).</p></div>':'<p class="muted">Log weights and reps in a session and your best lifts show up here.</p></div>';
+    return out+body;
+  }
+  function renderCoach(k){
+    var t=tips(k);
+    var out='<div class="card"><h2>This week</h2><ul class="tips">'+t.map(function(x){return '<li class="tip '+x.c+'">'+h(x.t)+'</li>'}).join("")+'</ul></div>';
+    out+='<div class="card"><h2>Suggested rhythm</h2><p class="muted">Chest, Shoulders + Biceps, Back + Triceps, then Legs, with a rest day between the hard ones. For example Mon Chest, Tue Shoulders + Biceps, Thu Back + Triceps, Fri Legs. Keep the weekend for a make-up session or the optional 5th. Never go over 5, and keep at least two rest days.</p></div>';
+    out+='<div class="card"><h2>Progressing</h2><p class="muted">Pick a rep range per lift. When every set hits the top of the range, add 2.5 kg (1.25 kg on small lifts) next time and drop back to the bottom of the range. Stop each set 1 to 2 reps before failure, and keep the form clean.</p></div>';
+    out+='<div class="card"><h2>Sync and reminders</h2><p class="muted">Your data lives on this device. To use both devices, save a backup into your Syncthing folder and import it on the other device. Newest edit wins for each week.</p><div class="btnrow"><button class="btn" id="exp">Save backup</button><button class="btn ghost" id="imp">Import backup</button></div><input type="file" id="impfile" accept=".json,application/json" hidden><p class="muted">Reminders at 5:00 pm, 9:30 pm and a Sunday review come from your calendar app, so they ring even when this app is closed.</p><button class="btn ghost" id="ics">Add reminders to calendar</button>'+(S.note?'<div class="tip good">'+h(S.note)+'</div>':'')+'</div>';
+    out+='<div class="card plan"><h2>Workouts</h2>';
+    if(!S.editing){
+      out+='<p class="muted">'+ORDER.concat(["X"]).map(function(c){return '<b>'+TYPES[c].name+':</b> '+S.settings.plan[c].map(function(e){return h(e.n)}).join(", ")}).join("<br><br>")+'</p><div class="btnrow"><button class="btn ghost" id="editP">Edit exercises</button></div>';
+    }else{
+      out+='<p class="muted">One exercise per line as <b>Name | sets x reps</b>, for example <b>Barbell bench press | 4x6-8</b>.</p>';
+      ORDER.concat(["X"]).forEach(function(c){
+        out+='<label for="pl-'+c+'">'+TYPES[c].name+'</label><textarea id="pl-'+c+'" data-plan="'+c+'" spellcheck="false">'+h(S.settings.plan[c].map(function(e){return e.n+" | "+e.t}).join("\n"))+'</textarea>';
+      });
+      out+='<div class="btnrow"><button class="btn" id="saveP">Done</button><button class="btn ghost" id="resetP">Reset to default</button></div>';
+    }
+    out+='</div>';
+    return out;
+  }
+  function render(){
+    var k=k0();
+    document.getElementById("weeklabel").textContent=fmt(shownMonday())+(S.offset===0?" (this week)":"");
+    Array.prototype.forEach.call(document.querySelectorAll("#tabs button"),function(b){b.setAttribute("aria-selected",String(b.dataset.tab===S.tab))});
+    view.innerHTML=S.tab==="today"?renderToday(k):S.tab==="week"?renderWeek(k):S.tab==="progress"?renderProgress():renderCoach(k);
+  }
+  function parsePlan(txt){
+    var out=[];
+    txt.split("\n").forEach(function(line){
+      line=line.trim();if(!line)return;
+      var p=line.split("|"),n=p[0].trim(),t=(p[1]||"3x10").trim().replace(/\s+/g,"").replace(/[×X]/g,"x");
+      if(!/^\d+x/.test(t))t="3x10";
+      if(n)out.push({n:n,t:t});
+    });
+    return out;
+  }
+
+  /* ---------- events ---------- */
+  function go(tab){S.tab=tab;S.msg="";render()}
+  document.getElementById("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b){S.sel=null;go(b.dataset.tab)}});
+  document.getElementById("prev").addEventListener("click",function(){S.offset--;S.sel=null;S.msg="";render()});
+  document.getElementById("next").addEventListener("click",function(){if(S.offset<0){S.offset++;S.sel=null;S.msg="";render()}});
+  document.getElementById("themebtn").addEventListener("click",function(){
+    var r=document.documentElement,dark=r.getAttribute("data-theme")==="dark"||(!r.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme: dark)").matches);
+    r.setAttribute("data-theme",dark?"light":"dark");
+  });
+  view.addEventListener("click",function(e){
+    var k=k0(),b,di=S.sel!==null?S.sel:(S.offset===0?todayIdx():null);
+    if((b=e.target.closest("[data-type]"))&&di!==null){var cur=peek(k).d[di];setType(k,di,b.dataset.type===""||(cur&&cur.t===b.dataset.type&&!cur.done)?"":b.dataset.type);return}
+    if((b=e.target.closest("[data-done]"))){toggleDone(k,+b.dataset.done);return}
+    if((b=e.target.closest("[data-open]"))){S.sel=+b.dataset.open;S.tab="today";S.msg="";render();window.scrollTo(0,0);return}
+    if((b=e.target.closest("[data-add]"))&&di!==null){addSet(k,di,+b.dataset.add,1);return}
+    if((b=e.target.closest("[data-rem]"))&&di!==null){addSet(k,di,+b.dataset.rem,-1);return}
+    if(e.target.id==="finish"&&di!==null){toggleDone(k,di);return}
+    if(e.target.id==="gonow"){S.offset=0;S.sel=null;render();return}
+    if(e.target.id==="gotoday"){S.sel=null;if(S.offset!==0)S.tab="week";render();return}
+    if(e.target.id==="exp"){exportData();return}
+    if(e.target.id==="imp"){document.getElementById("impfile").click();return}
+    if(e.target.id==="ics"){icsDownload();return}
+    if(e.target.id==="editP"){S.editing=true;render();return}
+    if(e.target.id==="saveP"){
+      Array.prototype.forEach.call(view.querySelectorAll("[data-plan]"),function(ta){var p=parsePlan(ta.value);if(p.length)S.settings.plan[ta.dataset.plan]=p});
+      S.editing=false;saveSettings();render();return;
+    }
+    if(e.target.id==="resetP"){S.settings.plan=clone(DEFAULT_PLAN);S.editing=false;saveSettings();render();return}
+  });
+  view.addEventListener("change",function(e){
+    var el=e.target,k=k0(),di=S.sel!==null?S.sel:(S.offset===0?todayIdx():null);
+    if(el.id==="impfile"){if(el.files&&el.files[0])importData(el.files[0]);el.value="";return}
+    if(el.dataset.sel!==undefined){setType(k,+el.dataset.sel,el.value);return}
+    if(el.dataset.ex!==undefined&&di!==null){logSet(k,di,+el.dataset.ex,+el.dataset.s,+el.dataset.f,el.value);return}
+  });
+
+  /* ---------- load ---------- */
+  (function loadLocal(){
+    var st=lsGet("gt-settings"); if(st&&st.plan)S.settings=st;
+    ORDER.concat(["X"]).forEach(function(c){if(!S.settings.plan[c])S.settings.plan[c]=clone(DEFAULT_PLAN[c])});
+    try{for(var i=0;i<localStorage.length;i++){var n=localStorage.key(i);if(n&&n.indexOf("gt-week-")===0){var w=lsGet(n);if(w&&w.d)S.weeks[n.slice(8)]=w}}}catch(e){}
+  })();
+  render(); setSync("Saved on this device. Works offline.");
+  document.getElementById("foot2").textContent="Week starts Monday";
+  if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+  document.addEventListener("visibilitychange",function(){if(!document.hidden&&document.activeElement&&document.activeElement.tagName==="INPUT")return;if(!document.hidden)render()});
+})();
+</script>
+</body></html>
